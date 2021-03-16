@@ -298,7 +298,9 @@ int main(int argc, char* argv[]) {
 		/* We may know from the file how much data there is */
 		if (!use_stdinout && !readwrite_len)
 			readwrite_len = parser->size(p_st);
-	} else {
+	} 
+	
+	else {
 		parser = &PARSER_BINARY;
 		p_st = parser->init();
 		if (!p_st) {
@@ -387,12 +389,14 @@ int main(int argc, char* argv[]) {
 			num_pages = STM32_MASS_ERASE;
 		else
 			num_pages = flash_addr_to_page_ceil(end) - first_page;
-	} else if (!spage && !npages) {
+	}
+	 else if (!spage && !npages) {
 		start = stm->dev->fl_start;
 		end = stm->dev->fl_end;
 		first_page = 0;
 		num_pages = STM32_MASS_ERASE;
-	} else {
+	}
+	 else {
 		first_page = spage;
 		start = flash_page_to_addr(first_page);
 		if (start > stm->dev->fl_end) {
@@ -413,6 +417,7 @@ int main(int argc, char* argv[]) {
 		if (!first_page && end == stm->dev->fl_end)
 			num_pages = STM32_MASS_ERASE;
 	}
+
 
 	if (action == ACT_READ) {
 		unsigned int max_len = port_opts.rx_frame_max;
@@ -454,7 +459,8 @@ int main(int argc, char* argv[]) {
 		fprintf(diag,	"Done.\n");
 		ret = 0;
 		goto close;
-	} else if (action == ACT_READ_PROTECT) {
+	}
+	 else if (action == ACT_READ_PROTECT) {
 		fprintf(diag, "Read-Protecting flash\n");
 		/* the device automatically performs a reset after the sending the ACK */
 		reset_flag = 0;
@@ -465,7 +471,8 @@ int main(int argc, char* argv[]) {
 		}
 		fprintf(diag,	"Done.\n");
 		ret = 0;
-	} else if (action == ACT_READ_UNPROTECT) {
+	} 
+	else if (action == ACT_READ_UNPROTECT) {
 		fprintf(diag, "Read-UnProtecting flash\n");
 		/* the device automatically performs a reset after the sending the ACK */
 		reset_flag = 0;
@@ -476,26 +483,9 @@ int main(int argc, char* argv[]) {
 		}
 		fprintf(diag,	"Done.\n");
 		ret = 0;
-	} else if (action == ACT_ERASE_ONLY) {
-		ret = 0;
-		fprintf(diag, "Erasing flash\n");
-
-		if (num_pages != STM32_MASS_ERASE &&
-		    (start != flash_page_to_addr(first_page)
-		     || end != flash_page_to_addr(first_page + num_pages))) {
-			fprintf(stderr, "Specified start & length are invalid (must be page aligned)\n");
-			ret = 1;
-			goto close;
-		}
-
-		s_err = stm32_erase_memory(stm, first_page, num_pages);
-		if (s_err != STM32_ERR_OK) {
-			fprintf(stderr, "Failed to erase memory\n");
-			ret = 1;
-			goto close;
-		}
-		ret = 0;
-	} else if (action == ACT_WRITE_UNPROTECT) {
+	} 
+	
+	else if (action == ACT_WRITE_UNPROTECT) {
 		fprintf(diag, "Write-unprotecting flash\n");
 		/* the device automatically performs a reset after the sending the ACK */
 		reset_flag = 0;
@@ -506,7 +496,8 @@ int main(int argc, char* argv[]) {
 		}
 		fprintf(diag,	"Done.\n");
 		ret = 0;
-	} else if (action == ACT_WRITE) {
+	} 
+	else if (action == ACT_WRITE) {
 		fprintf(diag, "Write to memory\n");
 
 		unsigned int offset = 0;
@@ -619,7 +610,9 @@ int main(int argc, char* argv[]) {
 		fprintf(diag,	"Done.\n");
 		ret = 0;
 		goto close;
-	} else if (action == ACT_CRC) {
+	}
+	
+	else if (action == ACT_CRC) {
 		uint32_t crc_val = 0;
 
 		fprintf(diag, "CRC computation\n");
@@ -633,8 +626,11 @@ int main(int argc, char* argv[]) {
 			crc_val);
 		ret = 0;
 		goto close;
-	} else
+	}
+	else {
 		ret = 0;
+	}
+		
 
 close:
 	if (stm && exec_flag && ret == 0) {
@@ -658,7 +654,8 @@ close:
 			fprintf(diag, "Reset failed.\n");
 		} else
 			fprintf(diag, "Reset done.\n");
-	} else if (port) {
+	}
+	 else if (port) {
 		/* Always run exit sequence if present */
 		if (gpio_seq && strchr(gpio_seq, ':'))
 			ret = gpio_bl_exit(port, gpio_seq) || ret;
@@ -680,10 +677,6 @@ int parse_options(int argc, char *argv[])
 
 	while ((c = getopt(argc, argv, "a:b:m:r:w:e:vn:g:jkfcChuos:S:F:i:R")) != -1) {
 		switch(c) {
-			case 'a':
-				port_opts.bus_addr = strtoul(optarg, NULL, 0);
-				break;
-
 			case 'b':
 				port_opts.baudRate = serial_get_baud(strtoul(optarg, NULL, 0));
 				if (port_opts.baudRate == SERIAL_BAUD_INVALID) {
@@ -719,57 +712,9 @@ int parse_options(int argc, char *argv[])
 					force_binary = 1;
 				}
 				break;
-			case 'e':
-				if (readwrite_len || start_addr) {
-					fprintf(stderr, "ERROR: Invalid options, can't specify start page / num pages and start address/length\n");
-					return 1;
-				}
-				npages = strtoul(optarg, NULL, 0);
-				if (npages > STM32_MAX_PAGES || npages < 0) {
-					fprintf(stderr, "ERROR: You need to specify a page count between 0 and 0xffff");
-					return 1;
-				}
-				if (!npages)
-					no_erase = 1;
-				break;
-			case 'u':
-				if (action != ACT_NONE) {
-					err_multi_action(ACT_WRITE_UNPROTECT);
-					return 1;
-				}
-				action = ACT_WRITE_UNPROTECT;
-				break;
-
-			case 'j':
-				if (action != ACT_NONE) {
-					err_multi_action(ACT_READ_PROTECT);
-					return 1;
-				}
-				action = ACT_READ_PROTECT;
-				break;
-
-			case 'k':
-				if (action != ACT_NONE) {
-					err_multi_action(ACT_READ_UNPROTECT);
-					return 1;
-				}
-				action = ACT_READ_UNPROTECT;
-				break;
-
-			case 'o':
-				if (action != ACT_NONE) {
-					err_multi_action(ACT_ERASE_ONLY);
-					return 1;
-				}
-				action = ACT_ERASE_ONLY;
-				break;
 
 			case 'v':
 				verify = 1;
-				break;
-
-			case 'n':
-				retry = strtoul(optarg, NULL, 0);
 				break;
 
 			case 'g':
@@ -780,94 +725,8 @@ int parse_options(int argc, char *argv[])
 					return 1;
 				}
 				break;
-			case 's':
-				if (readwrite_len || start_addr) {
-					fprintf(stderr, "ERROR: Invalid options, can't specify start page / num pages and start address/length\n");
-					return 1;
-				}
-				spage    = strtoul(optarg, NULL, 0);
-				break;
-			case 'S':
-				if (spage || npages) {
-					fprintf(stderr, "ERROR: Invalid options, can't specify start page / num pages and start address/length\n");
-					return 1;
-				} else {
-					start_addr = strtoul(optarg, &pLen, 0);
-					if (start_addr % 4 != 0) {
-						fprintf(stderr, "ERROR: Start address must be word-aligned\n");
-						return 1;
-					}
-					/* we decode 0 as 1 (which is unaligned and thus invalid anyway)
-					 * to flag that it was set by the user */
-					if (pLen != optarg && start_addr == 0)
-						start_addr = 1;
-					if (*pLen == ':') {
-						pLen++;
-						readwrite_len = strtoul(pLen, NULL, 0);
-						if (readwrite_len == 0) {
-							fprintf(stderr, "ERROR: Invalid options, can't specify zero length\n");
-							return 1;
-						}
-					}
-				}
-				break;
-			case 'F':
-				port_opts.rx_frame_max = strtoul(optarg, &pLen, 0);
-				if (*pLen == ':') {
-					pLen++;
-					port_opts.tx_frame_max = strtoul(pLen, NULL, 0);
-				}
-				if (port_opts.rx_frame_max < 0
-				    || port_opts.tx_frame_max < 0) {
-					fprintf(stderr, "ERROR: Invalid negative value for option -F\n");
-					return 1;
-				}
-				if (port_opts.rx_frame_max == 0)
-					port_opts.rx_frame_max = STM32_MAX_RX_FRAME;
-				if (port_opts.tx_frame_max == 0)
-					port_opts.tx_frame_max = STM32_MAX_TX_FRAME;
-				if (port_opts.rx_frame_max < 20
-				    || port_opts.tx_frame_max < 6) {
-					fprintf(stderr, "ERROR: current code cannot work with small frames.\n");
-					fprintf(stderr, "min(RX) = 20, min(TX) = 6\n");
-					return 1;
-				}
-				if (port_opts.rx_frame_max > STM32_MAX_RX_FRAME) {
-					fprintf(stderr, "WARNING: Ignore RX length in option -F\n");
-					port_opts.rx_frame_max = STM32_MAX_RX_FRAME;
-				}
-				if (port_opts.tx_frame_max > STM32_MAX_TX_FRAME) {
-					fprintf(stderr, "WARNING: Ignore TX length in option -F\n");
-					port_opts.tx_frame_max = STM32_MAX_TX_FRAME;
-				}
-				break;
-			case 'f':
-				force_binary = 1;
-				break;
 
-			case 'c':
-				init_flag = 0;
-				break;
-
-			case 'h':
-				show_help(argv[0]);
-				exit(0);
-
-			case 'i':
-				gpio_seq = optarg;
-				break;
-
-			case 'R':
-				reset_flag = 1;
-				break;
-
-			case 'C':
-				if (action != ACT_NONE) {
-					err_multi_action(ACT_CRC);
-					return 1;
-				}
-				action = ACT_CRC;
-				break;
+			
 		}
 	}
 
